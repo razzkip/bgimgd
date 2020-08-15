@@ -17,9 +17,8 @@ int main(int argc, char** argv) {
 			// count files in default dir
 			unsigned int fc = 0;
 			while ((ent = readdir(dir)) != NULL && fc < UINT_MAX) {
-				if (ent->d_type == DT_REG) {
+				if (ent->d_type == DT_REG)
 					fc++;
-				}
 			}
 			
 			// get file names
@@ -39,7 +38,6 @@ int main(int argc, char** argv) {
 			}
 
 			// start daemon loop
-			int init = 0;
 			unsigned int cur = 0;
 			while (1) {
 				if (cur == fc)
@@ -51,10 +49,7 @@ int main(int argc, char** argv) {
 				}
 
 				char feh[256];
-				strncpy(feh, "feh --bg-fill ", 255);
-				strncat(feh, bgdir, 255);
-				strncat(feh, "/", 255);
-				strncat(feh, imgs[cur], 255);
+				sprintf(feh, "feh --bg-fill %s/%s", bgdir, imgs[cur]);
 				system(feh);
 
 				cur++;
