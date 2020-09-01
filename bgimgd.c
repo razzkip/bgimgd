@@ -66,6 +66,7 @@ void feh(const char* fname, const char* dirname) {
 }
 
 int imgd(char** imgs, const char* dirname, int size) {
+	printf("starting bgimgd...\n");
 	unsigned int cur = 0;
 	while (1) {
 		if (cur == size)
@@ -85,6 +86,7 @@ int imgd(char** imgs, const char* dirname, int size) {
 }
 
 int imgd_rand(char** imgs, const char* dirname, int size) {
+	printf("starting bgimgd in random mode...\n");
 	while (1) {
 		time_t t;
 		srand((unsigned) time(&t));
