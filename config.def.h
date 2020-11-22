@@ -2,4 +2,6 @@
 const char* bgdir = "/home/zach/bg-img";
 
 // background image duration in minutes
-const double interval = 60;
+const unsigned interval = 60;           /* minutes */
+const unsigned sig_poll_interval = 60;  /* seconds */
+

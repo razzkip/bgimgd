@@ -1,5 +1,6 @@
 #include <dirent.h>
 #include <limits.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,17 +9,21 @@
 
 #include "config.h"
 
-int imgd(char** imgs, const char* dirname, int size);
-int imgd_rand(char** imgs, const char* dirname, int size);
-int fcount(const char* dirname);
-void feh(const char* fname, const char* dirname);
-char** fnames(const char* dirname, int size);
+int     imgd        (char** imgs, const char* dir_name, int size);
+int     imgd_rand   (char** imgs, const char* dir_name, int size);
+int     fcount      (const char* dir_name);
+void    feh         (const char* fname, const char* dir_name);
+char**  fnames      (const char* dir_name, int size);
+void    sigpoll     (int poll_factor);
+void    sig_usr1    (int signum);
 
-int fcount(const char* dirname) {
-    /** Count the number of files in a directory, dirname **/
+static int sig_usr1_flag = 0;
+
+int fcount(const char* dir_name) {
+    /** Count the number of files in a directory, dir_name **/
     DIR* dir;
     struct dirent* ent;
-    if ((dir = opendir(dirname)) != NULL) {
+    if ((dir = opendir(dir_name)) != NULL) {
         // count files in default dir
         unsigned int fc = 0;
         while ((ent = readdir(dir)) != NULL && fc < INT_MAX) {
@@ -33,11 +38,11 @@ int fcount(const char* dirname) {
     }
 }
 
-char** fnames(const char* dirname, int size) {
-    /** build array of size, size, of file names in the directory, dirname **/
+char** fnames(const char* dir_name, int size) {
+    /** build array of size, size, of file names in the directory, dir_name **/
     DIR* dir;
     struct dirent* ent;
-    if ((dir = opendir(dirname)) != NULL) {
+    if ((dir = opendir(dir_name)) != NULL) {
         char** imgs = malloc(sizeof(char*) * size);
         for (int i = 0; i < size; i++) {
             imgs[i] = malloc(sizeof(char) * NAME_MAX);
@@ -59,48 +64,64 @@ char** fnames(const char* dirname, int size) {
     }
 }
 
-void feh(const char* fname, const char* dirname) {
+void feh(const char* fname, const char* dir_name) {
     char feh[256];
-    sprintf(feh, "feh --bg-fill %s/%s", dirname, fname);
+    sprintf(feh, "feh --bg-fill %s/%s", dir_name, fname);
     system(feh);
 }
 
-int imgd(char** imgs, const char* dirname, int size) {
+int imgd(char** imgs, const char* dir_name, int size) {
     printf("starting bgimgd...\n");
-    unsigned int cur = 0;
+    int cur = 0;
+    int polfact = (60 * interval) / sig_poll_interval;
     while (1) {
         if (cur == size)
             cur = 0;
-                                                       
         if (imgs[cur] == NULL) {
             cur++;
             continue;
+        } else {
+            feh(imgs[cur], dir_name);                         
+            cur++;                                           
+            sigpoll(polfact);
         }
-
-        feh(imgs[cur], dirname);
-        cur++;
-        
-        sleep((int)(interval * 60));
-    }
+    }                                                   
     return 0;
 }
 
-int imgd_rand(char** imgs, const char* dirname, int size) {
+int imgd_rand(char** imgs, const char* dir_name, int size) {
     printf("starting bgimgd in random mode...\n");
+    int polfact = (60 * interval) / sig_poll_interval;
     while (1) {
         time_t t;
         srand((unsigned) time(&t));
         int r = rand() % size;
 
-        if (imgs[r] == NULL) {
+        if (imgs[r] == NULL) 
             continue;
+        else {
+            feh(imgs[r], dir_name);
+            sigpoll(polfact);
         }
-
-        feh(imgs[r], dirname);
-
-        sleep((int)(interval * 60));
     }
     return 0;
+}
+
+void sigpoll(int poll_factor) {
+    for (int i = 0; i < poll_factor; i++) {
+        if (sig_usr1_flag) {
+            sig_usr1_flag = 0;
+            return;
+        }
+        sleep(sig_poll_interval);
+    }
+}
+
+void sig_usr1(int signum) {
+    if (signum == SIGUSR1) {
+        printf("user advance queue signal received...\n");
+        sig_usr1_flag = 1;
+    }
 }
 
 int main(int argc, char** argv) {
@@ -111,22 +132,23 @@ int main(int argc, char** argv) {
     char* dir       = malloc(dirlen + 1);
     strcpy(dir, bgdir);
 
+    // register signal handling
+    signal(SIGUSR1, sig_usr1);
+
     // shell arg handling
     if (argc == 1) {
         int fc      = fcount(bgdir);
         char** imgs = fnames(bgdir, fc);
         return imgd(imgs, bgdir, fc);
     } else if (argc == 2) {
-        if (argv[1][0] == '-' && strstr(argv[1], "r")) {
+        if (argv[1][0] == '-' && strstr(argv[1], "r"))
             random = 1;
-        }
     } else if (argc == 3) {
         if (argv[1][0] == '-' && strstr(argv[1], "d")) {
             unsigned altdirlen = strlen(argv[2]);
             if (altdirlen) {
-                if (altdirlen > dirlen) {
+                if (altdirlen > dirlen)
                     dir = realloc(dir, altdirlen + 1);
-                }
                 strcpy(dir, argv[2]);
             }
         }
@@ -137,8 +159,10 @@ int main(int argc, char** argv) {
     // start non-standard daemon
     int fc      = fcount(dir);
     char** imgs = fnames(dir, fc);
-    if (random) { imgd_rand(imgs, dir, fc); }
-    else        { imgd(imgs, dir, fc); }
+    if (random)
+        imgd_rand(imgs, dir, fc);
+    else 
+        imgd(imgs, dir, fc);
 
     return 0;
 }
