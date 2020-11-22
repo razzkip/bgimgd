@@ -109,6 +109,8 @@ int imgd_rand(char** imgs, const char* dir_name, int size) {
 
 void sigpoll(int poll_factor) {
     for (int i = 0; i < poll_factor; i++) {
+        printf("sigpoll: %d/%d, sec: %d\n", 
+                i, poll_factor, sig_poll_interval);
         if (sig_usr1_flag) {
             sig_usr1_flag = 0;
             return;
