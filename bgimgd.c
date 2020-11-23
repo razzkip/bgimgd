@@ -9,13 +9,13 @@
 
 #include "config.h"
 
-int     imgd        (char** imgs, const char* dir_name, int size);
-int     imgd_rand   (char** imgs, const char* dir_name, int size);
-int     fcount      (const char* dir_name);
-void    feh         (const char* fname, const char* dir_name);
-char**  fnames      (const char* dir_name, int size);
-void    sigpoll     (int poll_factor);
-void    sig_usr1    (int signum);
+int imgd (const char* const* imgs, const char* dir_name, int size);
+int imgd_rand (const char* const* imgs, const char* dir_name, int size);
+int fcount (const char* dir_name);
+void feh (const char* fname, const char* dir_name);
+const char* const*  fnames (const char* dir_name, int size);
+void sigpoll (int poll_factor);
+void sig_usr1 (int signum);
 
 static int sig_usr1_flag = 0;
 
@@ -25,7 +25,7 @@ int fcount(const char* dir_name) {
     struct dirent* ent;
     if ((dir = opendir(dir_name)) != NULL) {
         // count files in default dir
-        unsigned int fc = 0;
+        unsigned fc = 0;
         while ((ent = readdir(dir)) != NULL && fc < INT_MAX) {
                 if (ent->d_type == DT_REG)
                         fc++;
@@ -38,7 +38,7 @@ int fcount(const char* dir_name) {
     }
 }
 
-char** fnames(const char* dir_name, int size) {
+const char* const* fnames(const char* dir_name, int size) {
     /** build array of size, size, of file names in the directory, dir_name **/
     DIR* dir;
     struct dirent* ent;
@@ -58,7 +58,7 @@ char** fnames(const char* dir_name, int size) {
         }
     
         rewinddir(dir);
-        return imgs;
+        return (const char* const*)imgs;
     } else {
         return NULL;
     }
@@ -70,7 +70,7 @@ void feh(const char* fname, const char* dir_name) {
     system(feh);
 }
 
-int imgd(char** imgs, const char* dir_name, int size) {
+int imgd(const char* const* imgs, const char* dir_name, int size) {
     printf("starting bgimgd...\n");
     int cur = 0;
     int polfact = (60 * interval) / sig_poll_interval;
@@ -89,7 +89,7 @@ int imgd(char** imgs, const char* dir_name, int size) {
     return 0;
 }
 
-int imgd_rand(char** imgs, const char* dir_name, int size) {
+int imgd_rand(const char* const* imgs, const char* dir_name, int size) {
     printf("starting bgimgd in random mode...\n");
     int polfact = (60 * interval) / sig_poll_interval;
     while (1) {
@@ -128,10 +128,10 @@ void sig_usr1(int signum) {
 
 int main(int argc, char** argv) {
     int verbose = 0;
-    int random  = 0;
+    int random = 0;
     
     unsigned dirlen = strlen(bgdir);
-    char* dir       = malloc(dirlen + 1);
+    char* dir = malloc(dirlen + 1);
     strcpy(dir, bgdir);
 
     // register signal handling
@@ -139,8 +139,8 @@ int main(int argc, char** argv) {
 
     // shell arg handling
     if (argc == 1) {
-        int fc      = fcount(bgdir);
-        char** imgs = fnames(bgdir, fc);
+        int fc = fcount(bgdir);
+        const char* const* imgs = fnames(bgdir, fc);
         return imgd(imgs, bgdir, fc);
     } else if (argc == 2) {
         if (argv[1][0] == '-' && strstr(argv[1], "r"))
@@ -159,8 +159,8 @@ int main(int argc, char** argv) {
     }
 
     // start non-standard daemon
-    int fc      = fcount(dir);
-    char** imgs = fnames(dir, fc);
+    int fc = fcount(dir);
+    const char* const* imgs = fnames(dir, fc);
     if (random)
         imgd_rand(imgs, dir, fc);
     else 
